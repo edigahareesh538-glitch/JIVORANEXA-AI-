@@ -192,7 +192,7 @@ export default function Home() {
   const displayName = auth?.user.display_name || auth?.user.email?.split("@")[0];
 
   return (
-    <div className="min-h-screen flex app-shell-bg relative">
+    <div className="min-h-screen flex app-shell-bg relative overflow-x-hidden">
       <AuroraBackground />
       <Sidebar tab={tab} onChange={setTab} open={sidebarOpen} onClose={() => setSidebarOpen(false)} isAdmin={Boolean(auth?.user.is_admin)} />
 
@@ -205,16 +205,17 @@ export default function Home() {
           onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <main className="flex-1 px-4 sm:px-6 py-6 max-w-6xl w-full mx-auto">
+        {/* Improved mobile padding and fluid width handling */}
+        <main className="flex-1 px-3 sm:px-6 py-4 sm:py-6 max-w-6xl w-full mx-auto box-border">
           {tab === "dashboard" && <Dashboard loggedIn={Boolean(auth)} name={displayName} onPlan={(destination) => { setTab("plan"); handleSubmit(`Plan a trip to ${destination}`, "flight"); }} />}
 
           {tab === "plan" && (
             <div className="space-y-6">
-              <div className="glass-panel rounded-3xl p-5 sm:p-6">
-                <h2 className="font-display text-2xl font-semibold text-center text-gradient-hero">
+              <div className="glass-panel rounded-3xl p-4 sm:p-6">
+                <h2 className="font-display text-xl sm:text-2xl font-semibold text-center text-gradient-hero">
                   Where do you want to go?
                 </h2>
-                <p className="text-center text-sm text-mist2 mt-1 mb-5">
+                <p className="text-center text-xs sm:text-sm text-mist2 mt-1 mb-5">
                   Our AI agent will plan everything for you in seconds.
                 </p>
                 <DestinationPreview currentLocation={currentLocation} />
@@ -228,7 +229,7 @@ export default function Home() {
                 <p className="text-sm text-alert border border-alert/30 bg-alert/5 rounded-xl px-4 py-3">{error}</p>
               )}
 
-              <div className="glass-panel rounded-3xl p-5 sm:p-6">
+              <div className="glass-panel rounded-3xl p-4 sm:p-6">
                 <AgentThinking entries={result?.action_log ?? []} live={busy} />
               </div>
 
@@ -240,7 +241,7 @@ export default function Home() {
                     <LiveETABadge destination={result.destination} liveLocation={currentLocation} />
                   </div>
 
-                  <div className="glass-panel rounded-3xl p-5 sm:p-6">
+                  <div className="glass-panel rounded-3xl p-4 sm:p-6 overflow-hidden">
                     <ItineraryResult result={result} />
                   </div>
 
@@ -249,7 +250,7 @@ export default function Home() {
                   <TripExtras result={result} loggedIn={Boolean(auth)} />
 
                   {result.route && (
-                    <div className="glass-panel rounded-3xl p-3 overflow-hidden">
+                    <div className="glass-panel rounded-3xl p-2 sm:p-3 overflow-hidden">
                       <TripMap route={result.route} liveLocation={currentLocation} />
                     </div>
                   )}
@@ -257,21 +258,21 @@ export default function Home() {
                   <AlertBanner sessionId={result.session_id} />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="glass-panel rounded-3xl p-5">
+                    <div className="glass-panel rounded-3xl p-4 sm:p-5">
                       <PaymentGateway amount={result.total_cost} label={result.trip_summary} loggedIn={Boolean(auth)} />
                     </div>
-                    <div className="glass-panel rounded-3xl p-5">
+                    <div className="glass-panel rounded-3xl p-4 sm:p-5">
                       <BookingPanel sessionId={result.session_id} />
                     </div>
                   </div>
 
-                  <div className="glass-panel rounded-3xl p-5">
+                  <div className="glass-panel rounded-3xl p-4 sm:p-5">
                     <HelpChat sessionId={result.session_id} currentLocation={currentLocation} />
                   </div>
                 </div>
               )}
 
-              <footer className="text-xs text-mist2/50 font-mono">session: {sessionId ?? "—"}</footer>
+              <footer className="text-xs text-mist2/50 font-mono pb-4">session: {sessionId ?? "—"}</footer>
             </div>
           )}
 
@@ -280,20 +281,20 @@ export default function Home() {
           {tab === "expenses" && (
             <div className="space-y-4">
               <ExpenseSmart loggedIn={Boolean(auth)} />
-              <div className="glass-panel rounded-3xl p-5 sm:p-6">
+              <div className="glass-panel rounded-3xl p-4 sm:p-6">
                 <ExpenseTracker loggedIn={Boolean(auth)} />
               </div>
             </div>
           )}
 
           {tab === "budget" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <BudgetPlannerPanel destination={result?.destination} />
             </div>
           )}
 
           {tab === "weather" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <WeatherSmart destination={result?.destination || "Hyderabad"} currentLocation={currentLocation} />
             </div>
           )}
@@ -301,56 +302,56 @@ export default function Home() {
           {tab === "voice" && (
             <div className="space-y-4">
               <VoiceAssistant />
-              <div className="glass-panel rounded-3xl p-5">
+              <div className="glass-panel rounded-3xl p-4 sm:p-5">
                 <p className="text-xs text-mist2">Tip: hold the microphone button, speak naturally in any supported language, then press <b>Plan from voice</b>. TTS will read the trip summary back to you.</p>
               </div>
             </div>
           )}
 
           {tab === "vision" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <VisionAssistant />
             </div>
           )}
 
           {tab === "group" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <GroupTrips loggedIn={Boolean(auth)} />
             </div>
           )}
 
           {tab === "booking" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <BookingEngine loggedIn={Boolean(auth)} defaultDestination={result?.destination} />
             </div>
           )}
 
           {tab === "offline" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <OfflineModePanel loggedIn={Boolean(auth)} />
             </div>
           )}
 
           {tab === "notifications" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <NotificationsCenter loggedIn={Boolean(auth)} />
             </div>
           )}
 
           {tab === "personalization" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <PersonalizationPanel loggedIn={Boolean(auth)} />
             </div>
           )}
 
           {tab === "admin" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6">
               <AdminDashboard loggedIn={Boolean(auth)} isAdmin={Boolean(auth?.user.is_admin)} />
             </div>
           )}
 
           {tab === "currency" && (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6 max-w-2xl">
+            <div className="glass-panel rounded-3xl p-4 sm:p-6 max-w-2xl mx-auto">
               <CurrencyConverter />
             </div>
           )}
