@@ -119,7 +119,7 @@ app.mount("/files", StaticFiles(directory=OUTPUT_DIR), name="files")
 # directly on `app` in this file; doing so previously caused
 # duplicate/conflicting route registrations (two handlers bound to the
 # same path), which is what produced the 404s on /api/auth/google.
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(agents_router)
 app.include_router(currency_router)
 app.include_router(emergency_router)

@@ -17,7 +17,7 @@ from app.db.models import User
 
 logger = logging.getLogger("app.auth")
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 # NOTE: Google/Frontend env vars are intentionally NOT read at module scope
 # here. Reading them at import time means their values are frozen the
