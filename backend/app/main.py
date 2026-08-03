@@ -1,10 +1,8 @@
 import os
 import json
-import requests
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, status
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -89,6 +87,13 @@ def _startup():
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 app.mount("/files", StaticFiles(directory=OUTPUT_DIR), name="files")
 
+# NOTE: All authentication routes -- including Google OAuth
+# (/api/auth/google, /api/auth/google/callback), guest login, register,
+# login, /me and /profile -- live in app/auth/routes.py and are exposed
+# here via auth_router. Do NOT redeclare any /api/auth/* routes directly
+# on `app`; doing so previously caused duplicate/conflicting route
+# registrations (two handlers bound to the same path) which is what
+# produced the 404s you were seeing on /api/auth/google.
 app.include_router(auth_router)
 app.include_router(agents_router)
 app.include_router(currency_router)
@@ -113,49 +118,6 @@ app.include_router(booking_router)
 app.include_router(offline_router)
 app.include_router(admin_router)
 app.include_router(personalization_router)
-
-
-@app.get("/api/auth/google")
-def direct_login_google():
-    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback")
-    if not google_client_id:
-        raise HTTPException(status_code=500, detail="Google Client ID not configured.")
-    google_auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"client_id={google_client_id}&"
-        f"redirect_uri={redirect_uri}&"
-        f"response_type=code&"
-        f"scope=openid%20email%20profile"
-    )
-    return RedirectResponse(url=google_auth_url)
-
-
-@app.get("/api/auth/google/callback")
-def direct_google_callback(code: str):
-    import requests
-    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
-    google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback")
-    
-    token_res = requests.post("https://oauth2.googleapis.com/token", data={
-        "code": code,
-        "client_id": google_client_id,
-        "client_secret": google_client_secret,
-        "redirect_uri": redirect_uri,
-        "grant_type": "authorization_code",
-    })
-    if token_res.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch token from Google")
-    
-    access_token = token_res.json().get("access_token")
-    user_res = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {access_token}"})
-    if user_res.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch user info from Google")
-    
-    email = user_res.json().get("email")
-    frontend_url = os.getenv("FRONTEND_URL", "https://jivoranexa-ai-1.vercel.app")
-    return RedirectResponse(url=f"{frontend_url}/profile?login_success=true&email={email}")
 
 
 class PlanRequest(BaseModel):

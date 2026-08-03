@@ -5,6 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth.deps import get_current_user
 from app.auth.firebase import FIREBASE_ENABLED, verify_id_token
@@ -57,12 +58,16 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
 
 
-# --- 1. Browser Redirect Google Login Flow ---
+# --- Google OAuth: browser redirect flow ------------------------------------
+# This is the ONLY place /api/auth/google and /api/auth/google/callback
+# should be defined. Do not add matching routes directly on the FastAPI
+# `app` object in main.py -- that previously created two handlers bound
+# to the same path, which is what caused the 404 you were seeing.
 @router.get("/google")
 def login_google_redirect():
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=500, detail="Google Client ID not configured on backend.")
-    
+
     google_auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
         f"client_id={GOOGLE_CLIENT_ID}&"
@@ -86,7 +91,7 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     token_res = requests.post(token_url, data=token_data)
     if token_res.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to fetch token from Google")
-    
+
     token_info = token_res.json()
     access_token = token_info.get("access_token")
 
@@ -96,7 +101,7 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     )
     if user_info_res.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to fetch user info from Google")
-    
+
     user_info = user_info_res.json()
     email = user_info.get("email")
     name = user_info.get("name")
@@ -113,7 +118,7 @@ def google_callback(code: str, db: Session = Depends(get_db)):
             is_guest=False,
         )
         db.add(user)
-    
+
     user.last_login_at = datetime.utcnow()
     db.commit()
     db.refresh(user)
@@ -124,7 +129,10 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     return RedirectResponse(url=f"{frontend_url}/profile?token={app_token}&login_success=true&email={email}")
 
 
-# --- 2. Existing Firebase / Payload Google Login Flow ---
+# --- Existing Firebase / ID-token Google Login flow (used by native apps) ---
+# NOTE: this is POST /api/auth/google, distinct from the GET /api/auth/google
+# redirect route above -- FastAPI dispatches these by HTTP method, so having
+# both on the same path is fine and is NOT the cause of the 404.
 @router.post("/google", response_model=TokenOut)
 def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
     if not FIREBASE_ENABLED:
@@ -162,14 +170,30 @@ def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
 @router.post("/guest", response_model=TokenOut)
 def guest_login(db: Session = Depends(get_db)):
     """Zero-friction guest mode -- no email, no password, works instantly."""
+    guest_tag = uuid.uuid4().hex[:8]
+
     user = User(
-        display_name=f"Guest-{uuid.uuid4().hex[:6]}",
+        # Give every guest a unique, harmless placeholder email. If `email`
+        # is NOT NULL and/or UNIQUE on the User model (common for auth
+        # tables), leaving it unset here is what silently breaks guest
+        # signup -- db.commit() raises an IntegrityError, the endpoint
+        # 500s, and the frontend just reports "guest login failed".
+        email=f"guest-{guest_tag}@guest.local",
+        display_name=f"Guest-{guest_tag[:6]}",
         auth_provider="guest",
         is_guest=True,
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+
+    try:
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Could not create guest session. Please try again.",
+        )
 
     token = create_access_token(user_id=user.id, is_guest=True)
     return TokenOut(access_token=token, user=UserOut.model_validate(user))
