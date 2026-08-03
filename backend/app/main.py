@@ -1,8 +1,10 @@
 import os
 import json
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+import requests
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -19,8 +21,7 @@ from app.tools.alerts import build_alerts
 from app.db.database import init_db
 from app.middleware.security import SecurityHeadersMiddleware, BodySizeLimitMiddleware, limiter
 
-# Routers -- Priority 1 (auth) + new feature routes. Each is a thin
-# APIRouter file under app/auth or app/routes; see README for the full list.
+# Routers
 from app.auth.routes import router as auth_router
 from app.routes.agents import router as agents_router
 from app.routes.currency import router as currency_router
@@ -63,21 +64,14 @@ app.add_middleware(
 )
 
 
+def DATABASE_URL_STATUS() -> str:  # pragma: no cover - helper for logs
+    from app.db.database import USING_SQLITE_FALLBACK, DATABASE_URL
+    return ("sqlite:" + DATABASE_URL.split("@")[-1]) if USING_SQLITE_FALLBACK else "postgres"
+
+
 @app.on_event("startup")
 def _startup():
     init_db()
-    # Phase 16: environment validation.
-    #
-    # BUGFIX (Phase 5-17 pass): this used to hard-crash the entire server
-    # (raise -> uvicorn exits) the moment JWT_SECRET_KEY was left at the
-    # value documented in .env.example / the README's "Quick start (zero
-    # API keys required)" section. That meant a fresh checkout following
-    # the README could never boot the backend at all -- not just Guest
-    # Mode, EVERY endpoint was unreachable. Insecure-default checking is
-    # now opt-in-to-enforce (ALLOW_INSECURE_DEFAULTS defaults to allowing
-    # startup) so local/demo use keeps working out of the box; set
-    # ALLOW_INSECURE_DEFAULTS=false explicitly in production to make this
-    # a hard failure again once you've set a real JWT_SECRET_KEY.
     try:
         from app.services.env_validator import validate_environment
         allow = os.getenv("ALLOW_INSECURE_DEFAULTS", "true").lower() == "true"
@@ -121,11 +115,61 @@ app.include_router(admin_router)
 app.include_router(personalization_router)
 
 
+# --- Google OAuth Direct Integration Routes ---
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback")
+
+@app.get("/api/auth/google")
+def login_google():
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google Client ID not configured on backend.")
+    
+    google_auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={GOOGLE_REDIRECT_URI}&"
+        f"response_type=code&"
+        f"scope=openid%20email%20profile"
+    )
+    return RedirectResponse(url=google_auth_url)
+
+@app.get("/api/auth/google/callback")
+def google_callback(code: str):
+    token_url = "https://oauth2.googleapis.com/token"
+    token_data = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    }
+    token_res = requests.post(token_url, data=token_data)
+    if token_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to fetch token from Google")
+    
+    token_info = token_res.json()
+    access_token = token_info.get("access_token")
+
+    user_info_res = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    if user_info_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to fetch user info from Google")
+    
+    user_info = user_info_res.json()
+    email = user_info.get("email")
+    
+    frontend_url = os.getenv("FRONTEND_URL", "https://jivoranexa-ai-1.vercel.app")
+    return RedirectResponse(url=f"{frontend_url}/profile?login_success=true&email={email}")
+
+
 class PlanRequest(BaseModel):
     message: str
     session_id: str | None = None
     current_location: dict | None = None
-    transport_mode: str | None = None  # "flight" | "train" | "bus" | "own_vehicle" | "rental_car"
+    transport_mode: str | None = None
 
 
 class BookRequest(BaseModel):
@@ -157,17 +201,12 @@ async def plan_from_image(
     current_location_json: str | None = Form(default=None),
     transport_mode: str | None = Form(default=None),
 ):
-    """Upload a photo of a place ('I want to go to this place') -- the agent
-    identifies it, then runs the full trip-planning pipeline against it."""
     image_bytes = await image.read()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty image upload.")
 
     place_info = identify_place(image_bytes, mime_type=image.content_type or "image/jpeg")
     destination = place_info.get("place") or place_info.get("city")
-
-    # Give intent extraction something to parse budget/duration from, even
-    # if the user didn't type anything alongside the photo.
     goal_text = message.strip() or f"Plan a trip to {place_info.get('place', destination)} under ₹20,000 for 3 days"
 
     session_id, _ = get_or_resume(session_id)
@@ -194,8 +233,6 @@ async def plan_from_image(
 
 @app.post("/api/book")
 def book_trip(req: BookRequest):
-    """Generates one PDF per booking (flight/hotel/bus/food) plus a
-    combined zip, using the most recent plan stored for this session."""
     state = memory_store.get(req.session_id)
     plan = state.get("results", {}).get("generate_itinerary")
     if not plan:
@@ -217,7 +254,6 @@ def book_trip(req: BookRequest):
 
 @app.get("/api/help/nearby")
 def help_nearby(session_id: str, query: str, lat: float | None = None, lng: float | None = None, label: str | None = None):
-    """Powers the 'help chat' -- e.g. 'near any hospital of my current destination'."""
     state = memory_store.get(session_id)
     plan = state.get("results", {}).get("generate_itinerary")
     destination = plan["destination"] if plan else "Hyderabad"
@@ -232,17 +268,10 @@ def help_nearby(session_id: str, query: str, lat: float | None = None, lng: floa
 
 @app.get("/api/alerts")
 def get_alerts(session_id: str):
-    """Powers the rotating live alert banner (weather change, transit reminders, etc.)."""
     state = memory_store.get(session_id)
     return {"alerts": build_alerts(state)}
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
-
-
-def DATABASE_URL_STATUS() -> str:  # pragma: no cover - helper for logs
-    from app.db.database import USING_SQLITE_FALLBACK, DATABASE_URL
-    return ("sqlite:" + DATABASE_URL.split("@")[-1]) if USING_SQLITE_FALLBACK else "postgres"
