@@ -121,7 +121,7 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     # Generate internal app token and pass it via query params back to frontend
     app_token = create_access_token(user_id=user.id, is_guest=False)
     frontend_url = os.getenv("FRONTEND_URL", "https://jivoranexa-ai-1.vercel.app")
-    return RedirectResponse(url=f"{frontend_url}/profile?token={app_token}&login_success=true")
+    return RedirectResponse(url=f"{frontend_url}/profile?token={app_token}&login_success=true&email={email}")
 
 
 # --- 2. Existing Firebase / Payload Google Login Flow ---
