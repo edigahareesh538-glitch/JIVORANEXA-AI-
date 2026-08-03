@@ -24,7 +24,13 @@ class UserOut(BaseModel):
     auth_provider: str
     is_guest: bool
     is_admin: bool = False
-    home_currency: str
+    # Guest accounts are created without any onboarding step, so home_currency
+    # may not be set on the User row yet. Making this optional (with a
+    # sensible default) prevents UserOut.model_validate(user) from raising a
+    # pydantic ValidationError -- which previously would have turned into an
+    # unhandled 500 on /api/auth/guest and /api/auth/google/callback the
+    # moment either flow returned a user without that field populated.
+    home_currency: str | None = "INR"
     preferred_language: str = "en"
     age: int | None = None
     phone: str | None = None
@@ -54,4 +60,9 @@ class ProfileUpdate(BaseModel):
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user: UserOut
+    # Optional so this schema can also describe token-only responses (e.g. a
+    # refresh-token endpoint added later) without requiring a full UserOut
+    # every time. All current routes (register/login/guest/google) still
+    # populate this, so existing frontend code that reads response.user
+    # keeps working unchanged.
+    user: UserOut | None = None

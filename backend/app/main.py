@@ -20,6 +20,14 @@ from app.db.database import init_db
 from app.middleware.security import SecurityHeadersMiddleware, BodySizeLimitMiddleware, limiter
 
 # Routers
+# NOTE: app.auth.routes is the ONLY place OAuth (Google) routes may be
+# declared. GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / FRONTEND_URL must be
+# read inside app.services.config or inside the route handlers in
+# app.auth.routes themselves -- never at module scope in main.py. Reading
+# them at import time in main.py is what previously caused the app to
+# crash on boot on Render whenever a var was briefly unset during a
+# redeploy/env-var rotation, since main.py is imported before uvicorn even
+# starts serving traffic.
 from app.auth.routes import router as auth_router
 from app.routes.agents import router as agents_router
 from app.routes.currency import router as currency_router
@@ -49,10 +57,18 @@ app = FastAPI(title="Autonomous Trip Planner Agent", version="2.0.0")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# --- Middleware registration order matters ---------------------------------
+# Starlette builds the middleware stack in REVERSE of call order: the last
+# middleware added becomes the OUTERMOST layer and therefore runs FIRST on
+# the way in (and last on the way out). We deliberately add CORSMiddleware
+# last so it wraps everything else -- this lets browser preflight (OPTIONS)
+# requests get valid CORS headers before they ever reach the security
+# headers, body-size limit, or rate-limiter middleware. Do not reorder this
+# without re-testing preflight requests from the deployed frontend origin.
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(SlowAPIMiddleware)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -77,6 +93,9 @@ def _startup():
         for w in result.get("warnings", []):
             print(f"[env] WARNING: {w}")
     except EnvironmentError as e:
+        # Fails hard only when ALLOW_INSECURE_DEFAULTS is false (strict
+        # mode). In permissive mode this is a warning, not a boot-blocker,
+        # so a missing optional var doesn't take the whole service down.
         print(f"[env] FATAL: {e}")
         raise
     from app.services.logging import info
@@ -84,16 +103,22 @@ def _startup():
 
 
 # Serve generated booking PDFs at /files/<session_id>/<filename>
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+# Wrapped in try/except: Render's filesystem is ephemeral and, depending on
+# plan/config, can be read-only at certain paths -- don't let a mkdir
+# failure prevent the app (and therefore all other routes) from booting.
+try:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+except OSError as e:
+    print(f"[startup] WARNING: could not create OUTPUT_DIR ({OUTPUT_DIR}): {e}")
 app.mount("/files", StaticFiles(directory=OUTPUT_DIR), name="files")
 
-# NOTE: All authentication routes -- including Google OAuth
+# All authentication routes -- including Google OAuth
 # (/api/auth/google, /api/auth/google/callback), guest login, register,
 # login, /me and /profile -- live in app/auth/routes.py and are exposed
-# here via auth_router. Do NOT redeclare any /api/auth/* routes directly
-# on `app`; doing so previously caused duplicate/conflicting route
-# registrations (two handlers bound to the same path) which is what
-# produced the 404s you were seeing on /api/auth/google.
+# here via auth_router ONLY. Do NOT redeclare any /api/auth/* routes
+# directly on `app` in this file; doing so previously caused
+# duplicate/conflicting route registrations (two handlers bound to the
+# same path), which is what produced the 404s on /api/auth/google.
 app.include_router(auth_router)
 app.include_router(agents_router)
 app.include_router(currency_router)
@@ -229,4 +254,9 @@ def get_alerts(session_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # Render injects the port to bind via the $PORT env var -- it does not
+    # reliably use a hardcoded port like 8000. reload=True is a dev-only
+    # flag; it should never run in production (extra overhead, and Render's
+    # process manager does its own restarts on deploy).
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)

@@ -27,10 +27,25 @@ class User(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     firebase_uid = Column(String, unique=True, nullable=True, index=True)
+
+    # `unique=True, nullable=True` is exactly what both auth flows need:
+    # - Google/password users get a real, unique email.
+    # - Guest users get a generated `guest-<hex>@guest.local` placeholder
+    #   (set in app/auth/routes.py) which is still unique per row, so it
+    #   satisfies the UNIQUE constraint without needing a NULL email.
+    # nullable=True is kept (rather than NOT NULL) as a safety margin for
+    # any future auth provider that genuinely has no email to offer.
     email = Column(String, unique=True, nullable=True, index=True)
+
     display_name = Column(String, nullable=True)
     photo_url = Column(String, nullable=True)
-    auth_provider = Column(String, default="guest")  # "google" | "password" | "guest"
+
+    # "google" | "password" | "guest". Nullable=True so a row can never fail
+    # to insert on this column alone even if a future code path forgets to
+    # set it -- auth_provider is informational, not something worth a hard
+    # DB-level constraint given how many call sites construct a User.
+    auth_provider = Column(String, nullable=True, default="guest")
+
     is_guest = Column(Boolean, default=False)
     home_currency = Column(String, default="INR")
     preferred_language = Column(String, default="en")
@@ -50,7 +65,12 @@ class User(Base):
     is_admin = Column(Boolean, default=False, index=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    last_login_at = Column(DateTime, default=datetime.utcnow)
+    # Nullable=True: a Python-side default fires on INSERT, but keeping the
+    # column itself nullable means a bulk import, a manual DB row, or a
+    # future migration that skips this field won't violate a NOT NULL
+    # constraint -- last_login_at is a "nice to have" timestamp, not
+    # something that should be able to block user creation.
+    last_login_at = Column(DateTime, nullable=True, default=datetime.utcnow)
 
     trips = relationship("Trip", back_populates="user", cascade="all, delete-orphan")
     favorites = relationship("FavoritePlace", back_populates="user", cascade="all, delete-orphan")
