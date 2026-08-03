@@ -1,0 +1,43 @@
+version: "3.9"
+
+# Phase 16 — Docker support: one command brings up the full stack.
+# `docker compose up --build`. The frontend runs against the backend
+# service via the NEXT_PUBLIC_API_URL env injected at build time.
+
+services:
+  backend:
+    build: ./backend
+    container_name: jivoranexa-backend
+    env_file:
+      - ./backend/.env.example
+    environment:
+      - CORS_ORIGINS=http://localhost:3000
+      - DATABASE_URL=${DATABASE_URL:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-only-insecure-secret-change-me}
+      - JSON_LOGS=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - jivoranexa-db:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: node:20-alpine
+    container_name: jivoranexa-frontend
+    working_dir: /app
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontendbest:/app
+    command: sh -c "npm install --no-audit --no-fund && \
+                    npm run build && \
+                    npm start -- -p 3000"
+
+volumes:
+  jivoranexa-db:
