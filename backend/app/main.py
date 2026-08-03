@@ -115,52 +115,45 @@ app.include_router(admin_router)
 app.include_router(personalization_router)
 
 
-# --- Google OAuth Direct Integration Routes ---
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback")
-
 @app.get("/api/auth/google")
-def login_google():
-    if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="Google Client ID not configured on backend.")
-    
+def direct_login_google():
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback")
+    if not google_client_id:
+        raise HTTPException(status_code=500, detail="Google Client ID not configured.")
     google_auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"client_id={GOOGLE_CLIENT_ID}&"
-        f"redirect_uri={GOOGLE_REDIRECT_URI}&"
+        f"client_id={google_client_id}&"
+        f"redirect_uri={redirect_uri}&"
         f"response_type=code&"
         f"scope=openid%20email%20profile"
     )
     return RedirectResponse(url=google_auth_url)
 
+
 @app.get("/api/auth/google/callback")
-def google_callback(code: str):
-    token_url = "https://oauth2.googleapis.com/token"
-    token_data = {
+def direct_google_callback(code: str):
+    import requests
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback")
+    
+    token_res = requests.post("https://oauth2.googleapis.com/token", data={
         "code": code,
-        "client_id": GOOGLE_CLIENT_ID,
-        "client_secret": GOOGLE_CLIENT_SECRET,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "client_id": google_client_id,
+        "client_secret": google_client_secret,
+        "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
-    }
-    token_res = requests.post(token_url, data=token_data)
+    })
     if token_res.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to fetch token from Google")
     
-    token_info = token_res.json()
-    access_token = token_info.get("access_token")
-
-    user_info_res = requests.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        headers={"Authorization": f"Bearer {access_token}"}
-    )
-    if user_info_res.status_code != 200:
+    access_token = token_res.json().get("access_token")
+    user_res = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", headers={"Authorization": f"Bearer {access_token}"})
+    if user_res.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to fetch user info from Google")
     
-    user_info = user_info_res.json()
-    email = user_info.get("email")
-    
+    email = user_res.json().get("email")
     frontend_url = os.getenv("FRONTEND_URL", "https://jivoranexa-ai-1.vercel.app")
     return RedirectResponse(url=f"{frontend_url}/profile?login_success=true&email={email}")
 
