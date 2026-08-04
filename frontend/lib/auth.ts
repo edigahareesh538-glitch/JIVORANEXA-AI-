@@ -1,6 +1,6 @@
 "use client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com";
 const TOKEN_KEY = "trip_agent_token";
 
 export type AuthUser = {
