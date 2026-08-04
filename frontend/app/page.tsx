@@ -128,7 +128,7 @@ export default function Home() {
   function fail() {
     setError(
       "Couldn't reach the agent backend. Make sure the FastAPI server is running on " +
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
+        (process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com")
     );
   }
 

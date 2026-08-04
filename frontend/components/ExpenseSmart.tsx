@@ -13,7 +13,7 @@ import {
 } from "@/lib/api";
 import { authHeaders } from "@/lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com";
 
 interface OcrParsedData {
   merchant?: string;

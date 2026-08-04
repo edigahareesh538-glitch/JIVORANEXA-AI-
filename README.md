@@ -98,7 +98,7 @@ npm run dev
 
 Visit `http://localhost:3000`. `frontend/.env.local`:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=https://jivoranexa-ai.onrender.com
 ```
 
 That's it — sign in with a fresh email/password, or hit **Continue as

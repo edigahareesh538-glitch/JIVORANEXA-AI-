@@ -33,7 +33,7 @@ export default function NotificationsCenter({ loggedIn }: { loggedIn: boolean })
   async function autoGenerate() {
     if (!loggedIn) return;
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const API = process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com";
       const { authHeaders } = await import("@/lib/auth");
       await fetch(`${API}/api/notifications/auto-generate`, {
         method: "POST", headers: { ...authHeaders() },
@@ -74,7 +74,7 @@ export default function NotificationsCenter({ loggedIn }: { loggedIn: boolean })
             <Sparkles size={12} /> Generate reminders
           </button>
           <button onClick={async () => {
-            const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const API = process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com";
             const { authHeaders } = await import("@/lib/auth");
             await fetch(`${API}/api/notifications/mark-all-read`, {
               method: "POST", headers: { ...authHeaders() },
