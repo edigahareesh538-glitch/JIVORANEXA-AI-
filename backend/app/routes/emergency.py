@@ -101,13 +101,20 @@ def sms_payload(req: SmsPayloadIn):
         location = f" {req.label or 'live'} ({maps})" if req.label else f" {maps}"
     elif req.destination:
         location = f" near {req.destination}"
-    body = (f"Emergency - I need help{location}."
-            + (f"\n\n{req.notes}" if req.notes else ""))
+    
+    notes_part = f"\n\n{req.notes}" if req.notes else ""
+    body = f"Emergency - I need help{location}.{notes_part}"
+    
     phone = (req.contact_phone or "").replace(" ", "").replace("-", "")
     if phone and not phone.startswith("+"):
         phone = "+91" + phone if len(phone) == 10 else "+" + phone
-    return {"to": phone, "body": body, "sms_uri": f"sms:{phone}?body={body.replace(' ', '%20').replace('\n', '%0A')}"
-                                       if phone else None}
+        
+    sms_uri = None
+    if phone:
+        encoded_body = body.replace(" ", "%20").replace("\n", "%0A")
+        sms_uri = f"sms:{phone}?body={encoded_body}"
+        
+    return {"to": phone, "body": body, "sms_uri": sms_uri}
 
 
 class CrashReportIn(BaseModel):
