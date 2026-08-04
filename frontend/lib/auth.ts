@@ -102,3 +102,12 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<AuthState
   });
   return handle(res);
 }
+export async function fetchCurrentUser(token: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load profile: ${res.status}`);
+  }
+  return (await res.json()) as AuthUser;
+}
