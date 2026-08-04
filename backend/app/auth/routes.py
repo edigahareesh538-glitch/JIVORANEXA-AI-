@@ -75,7 +75,7 @@ def login_google_redirect():
     google_client_id = os.getenv("GOOGLE_CLIENT_ID")
     google_redirect_uri = os.getenv(
         "GOOGLE_REDIRECT_URI",
-        "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback",
+        "https://jivoranexa-ai.onrender.com/api/auth/google/callback",
     )
 
     if not google_client_id:
@@ -97,7 +97,7 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
     google_redirect_uri = os.getenv(
         "GOOGLE_REDIRECT_URI",
-        "https://jivoranexa-ai-1.onrender.com/api/auth/google/callback",
+        "https://jivoranexa-ai.onrender.com/api/auth/google/callback",
     )
 
     if not google_client_id or not google_client_secret:

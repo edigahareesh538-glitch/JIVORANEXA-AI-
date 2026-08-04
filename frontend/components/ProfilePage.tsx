@@ -87,7 +87,7 @@ export default function ProfilePage({
             <button
               type="button"
               onClick={() => {
-                window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai-1.onrender.com"}/api/auth/google`;
+                window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com"}/api/auth/google`;
               }}
               className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white transition font-medium text-sm"
             >
