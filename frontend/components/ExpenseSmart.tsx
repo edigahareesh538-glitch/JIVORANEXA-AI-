@@ -7,7 +7,7 @@ import {
   CheckCircle2, AlertCircle, Building2, Tag, Calendar, DollarSign, ArrowUpRight 
 } from "lucide-react";
 import {
-  ExpenseReport, 
+  ExpenseReport, exportExpenseCsvUrl, exportExpensePdfUrl, exportExpenseXlsxUrl,
   getBudgetVsActualReport, getExpenseAnalytics, getExpenseMonthlyReport,
   ocrExpenseText,
 } from "@/lib/api";
@@ -70,40 +70,39 @@ export default function ExpenseSmart({ loggedIn }: { loggedIn: boolean }) {
     } finally { setOcrBusy(false); }
   }
 
-  const handleExport = async (format: "xlsx" | "pdf" | "csv") => {
+  async function downloadExport(format: "csv" | "xlsx" | "pdf") {
     try {
-      const token = localStorage.getItem("token") || localStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("Please sign in to export expenses.");
-      }
-
+      setError(null);
       const response = await fetch(`${API}/api/expenses/export/${format}`, {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "Accept": format === "pdf" ? "application/pdf" : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv",
+          ...authHeaders(),
+          Accept: format === "pdf"
+            ? "application/pdf"
+            : format === "xlsx"
+              ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              : "text/csv",
         },
       });
 
       if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw new Error(body || "Failed to download file");
+        throw new Error(body || `Export failed (${response.status})`);
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `expenses_report.${format}`;
+      link.download = `expenses_report.${format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv"}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (e) {
-      console.error("Export error:", e);
-      setError(e instanceof Error ? e.message : "Export failed. Please login again.");
+      setError(e instanceof Error ? e.message : "Export failed.");
     }
-  };
+  }
 
   if (!loggedIn) {
     return (
@@ -237,13 +236,13 @@ export default function ExpenseSmart({ loggedIn }: { loggedIn: boolean }) {
           <div className="glass-panel rounded-2xl p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-mist2 mb-3">Exports & Reports</p>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => handleExport("csv")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
+              <button type="button" onClick={() => downloadExport("csv")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
                 <Download size={12} /> CSV
               </button>
-              <button onClick={() => handleExport("xlsx")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
+              <button type="button" onClick={() => downloadExport("xlsx")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
                 <FileSpreadsheet size={12} /> Excel
               </button>
-              <button onClick={() => handleExport("pdf")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
+              <button type="button" onClick={() => downloadExport("pdf")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
                 <FileText size={12} /> PDF
               </button>
               <button onClick={async () => {
