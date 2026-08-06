@@ -103,7 +103,8 @@ export default function TripForm({
         </div>
       )}
 
-      <div className="mt-2 flex gap-2">
+      {/* Updated row with flex-wrap and min-w-0 for mobile responsiveness */}
+      <div className="mt-2 flex flex-wrap gap-2">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -112,7 +113,7 @@ export default function TripForm({
               ? "Optional: add budget/duration, e.g. under ₹20,000 for 3 days"
               : "Search any place, e.g. Charminar, Delhi, Goa trip under ₹25,000"
           }
-          className="flex-1 bg-panel border border-line rounded-xl px-4 py-3 text-sm outline-none focus:border-amber transition-colors placeholder:text-mist/50"
+          className="flex-1 min-w-0 bg-panel border border-line rounded-xl px-4 py-3 text-sm outline-none focus:border-amber transition-colors placeholder:text-mist/50"
         />
 
         <input

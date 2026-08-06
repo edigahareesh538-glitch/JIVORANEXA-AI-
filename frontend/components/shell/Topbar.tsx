@@ -50,6 +50,7 @@ export default function Topbar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -173,6 +174,38 @@ export default function Topbar({
       <button onClick={onMenuClick} className="lg:hidden text-mist p-1.5 -ml-1.5">
         <Menu size={20} />
       </button>
+
+      <button onClick={() => setMobileSearchOpen(true)} className="md:hidden text-mist p-1.5">
+        <Search size={18} />
+      </button>
+
+      {mobileSearchOpen && (
+        <div className="fixed inset-0 z-50 bg-ink/95 backdrop-blur-xl p-4 md:hidden">
+          <div className="flex items-center gap-2 glass-card glow-input rounded-xl px-3 py-2.5">
+            <Search size={16} className="text-mist2" />
+            <input
+              autoFocus
+              placeholder={placeholder}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="bg-transparent text-sm outline-none placeholder:text-mist2 flex-1 text-white"
+            />
+            <button onClick={() => { setMobileSearchOpen(false); setQuery(""); }} className="text-mist2 text-xs">Cancel</button>
+          </div>
+          <div className="mt-3 space-y-1">
+            {searchResults.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => { selectResult(item); setMobileSearchOpen(false); }}
+                className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl hover:bg-white/5 text-left"
+              >
+                <span className="text-sm">{item.label}</span>
+                {item.sublabel && <span className="text-xs text-mist2">{item.sublabel}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 min-w-0">
         <h1 className="font-display text-lg sm:text-xl font-semibold truncate">{title}</h1>

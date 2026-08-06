@@ -44,7 +44,8 @@ export default function DestinationPreview({ currentLocation }: { currentLocatio
 
       {preview && (
         <div className="mt-4 glass rounded-xl overflow-hidden fade-scale-in">
-          <div className="grid grid-cols-3 gap-0.5 h-40">
+          {/* Updated grid for mobile responsiveness: grid-cols-2 on mobile, sm:grid-cols-3 on larger screens */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-0.5 h-40">
             {[0, 1, 2].map((i) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img
