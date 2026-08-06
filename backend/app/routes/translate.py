@@ -21,7 +21,9 @@ def translate_text(req: TranslateIn):
     try:
         import google.generativeai as genai
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        # Switched from gemini-1.5-flash to gemini-pro for universal compatibility
+        model = genai.GenerativeModel("gemini-pro")
         prompt = f"Translate the following text into language code '{req.target_language}'. Reply with ONLY the translated text, no extra notes or quotes:\n\n{req.text}"
         resp = model.generate_content(prompt)
         translated_text = resp.text.strip() if resp and resp.text else req.text
