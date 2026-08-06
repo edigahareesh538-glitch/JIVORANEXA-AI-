@@ -49,6 +49,9 @@ def identify_place(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
 
         img = Image.open(io.BytesIO(image_bytes))
         prompt = (
+            "Analyze this image very carefully for a trip planner app. "
+            "Look specifically for unique regional identifiers, license plates (e.g., TS for Telangana/Hyderabad, MH for Maharashtra/Mumbai), "
+            "local signboards, or distinct monuments (like Charminar) to accurately identify the city. Do not confuse Hyderabad with Mumbai. "
             "Identify the famous place, landmark, or destination shown in this photo. "
             "Respond with ONLY valid JSON, no markdown fences, in this exact shape: "
             '{"place": "...", "city": "...", "country": "...", "description": "one or two sentence description"}'
