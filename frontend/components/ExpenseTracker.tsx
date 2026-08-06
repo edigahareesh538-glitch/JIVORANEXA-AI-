@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, CartesianGrid, Legend, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { addExpense, deleteExpense, Expense, expenseSummary, listExpenses } from "@/lib/api";
-import { authHeaders, getStoredAuth } from "@/lib/auth";
 
 const CATEGORIES = ["flight", "hotel", "food", "shopping", "transport", "emergency", "other"];
 const BUDGET_KEY = "trip_agent_expense_budget";
@@ -67,15 +66,30 @@ export default function ExpenseTracker({ loggedIn }: { loggedIn: boolean }) {
 
   const handleExport = async (format: "xlsx" | "pdf" | "csv") => {
     try {
-      const auth = getStoredAuth();
-      if (!auth?.token) {
+      const rawStored = localStorage.getItem("trip_agent_token");
+      let token: string | null = null;
+
+      if (rawStored) {
+        try {
+          const parsed = JSON.parse(rawStored);
+          token = parsed?.token || parsed?.access_token || null;
+        } catch {
+          token = rawStored;
+        }
+      }
+
+      if (!token) {
+        token = localStorage.getItem("token") || localStorage.getItem("access_token");
+      }
+
+      if (!token) {
         throw new Error("Please sign in to export expenses.");
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com"}/api/expenses/export/${format}`, {
         method: "GET",
         headers: {
-          ...authHeaders(),
+          Authorization: `Bearer ${token}`,
           Accept: format === "pdf" ? "application/pdf" : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv",
         },
       });
