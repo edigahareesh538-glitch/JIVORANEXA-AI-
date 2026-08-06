@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, CartesianGrid, Legend, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { addExpense, deleteExpense, Expense, expenseSummary, listExpenses } from "@/lib/api";
+import { authHeaders, getStoredAuth } from "@/lib/auth";
 
 const CATEGORIES = ["flight", "hotel", "food", "shopping", "transport", "emergency", "other"];
 const BUDGET_KEY = "trip_agent_expense_budget";
@@ -64,34 +65,44 @@ export default function ExpenseTracker({ loggedIn }: { loggedIn: boolean }) {
     refresh();
   }
 
-  function exportCsv() {
-    const rows = [["Date", "Category", "Label", "Amount", "Currency"], ...filteredExpenses.map((item) => [item.spent_at, item.category, item.label || "", item.amount, item.currency])];
-    const blob = new Blob([rows.map((row) => row.join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "expenses.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  const handleExport = async (format: "xlsx" | "pdf" | "csv") => {
+    try {
+      const auth = getStoredAuth();
+      if (!auth?.token) {
+        throw new Error("Please sign in to export expenses.");
+      }
 
-  function exportExcel() {
-    const rows = [["Date", "Category", "Label", "Amount", "Currency"], ...filteredExpenses.map((item) => [item.spent_at, item.category, item.label || "", item.amount, item.currency])];
-    const blob = new Blob([rows.map((row) => row.join("\t")).join("\n")], { type: "application/vnd.ms-excel" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "expenses.xls";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://jivoranexa-ai.onrender.com"}/api/expenses/export/${format}`, {
+        method: "GET",
+        headers: {
+          ...authHeaders(),
+          Accept: format === "pdf" ? "application/pdf" : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv",
+        },
+      });
 
-  function exportPdf() {
-    const reportWindow = window.open("", "_blank", "width=900,height=700");
-    if (!reportWindow) return;
-    reportWindow.document.write(`<html><head><title>Expense Report</title></head><body><h1>Expense Report</h1><table border="1" cellspacing="0" cellpadding="8"><tr><th>Date</th><th>Category</th><th>Label</th><th>Amount</th></tr>${filteredExpenses.map((item) => `<tr><td>${new Date(item.spent_at).toLocaleDateString("en-IN")}</td><td>${item.category}</td><td>${item.label || ""}</td><td>${item.amount}</td></tr>`).join("")}</table><script>window.print();</script></body></html>`);
-    reportWindow.document.close();
-  }
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        throw new Error(body || "Failed to download file");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `expenses_report.${format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv"}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export error:", e);
+      setError(e instanceof Error ? e.message : "Export failed. Please login again.");
+    }
+  };
+
+  const exportCsv = () => handleExport("csv");
+  const exportExcel = () => handleExport("xlsx");
+  const exportPdf = () => handleExport("pdf");
 
   if (!loggedIn) {
     return <p className="text-sm text-mist border border-line rounded-xl p-4">Sign in or continue as guest to track expenses.</p>;
