@@ -1,14 +1,47 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, Download, Share2, Award } from "lucide-react";
+import { X, Download, Share2, Award, Compass, ArrowRight } from "lucide-react";
 import { getTripSummary, TripSummary } from "@/lib/api";
 import { computeBadges, Badge } from "@/lib/badges";
+import confetti from "canvas-confetti";
+
+function getRecommendations(destination: string) {
+  const dest = destination.toLowerCase();
+  if (dest.includes("hyderabad")) {
+    return [
+      { name: "Goa", tag: "Beach & Relaxation" },
+      { name: "Ooty", tag: "Hill Station" },
+    ];
+  }
+  if (dest.includes("goa")) {
+    return [
+      { name: "Kerala Backwaters", tag: "Nature & Serenity" },
+      { name: "Andaman", tag: "Island Adventure" },
+    ];
+  }
+  if (dest.includes("vizag") || dest.includes("visakhapatnam")) {
+    return [
+      { name: "Araku Valley", tag: "Scenic Hills" },
+      { name: "Pondicherry", tag: "Coastal Heritage" },
+    ];
+  }
+  return [
+    { name: "Jaipur", tag: "Royal Heritage" },
+    { name: "Manali", tag: "Snow & Mountains" },
+  ];
+}
 
 export default function TripMemoryAlbum({ tripId, onClose }: { tripId: string; onClose: () => void }) {
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
 
   useEffect(() => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+    });
+
     getTripSummary(tripId)
       .then((data) => {
         setSummary(data);
@@ -18,6 +51,8 @@ export default function TripMemoryAlbum({ tripId, onClose }: { tripId: string; o
   }, [tripId]);
 
   if (!summary) return null;
+
+  const recommendations = getRecommendations(summary.destination);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
@@ -37,7 +72,7 @@ export default function TripMemoryAlbum({ tripId, onClose }: { tripId: string; o
           <Stat label="Days" value={String(summary.days || "—")} />
         </div>
 
-        <div className="mt-6 text-left">
+        <div className="mt-5 text-left">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-2">
             <Award size={14} /> Unlocked Badges
           </p>
@@ -45,17 +80,37 @@ export default function TripMemoryAlbum({ tripId, onClose }: { tripId: string; o
             {badges.map((badge) => (
               <div
                 key={badge.id}
-                className={`p-2.5 rounded-xl border flex items-center gap-2 ${
+                className={`p-2 rounded-xl border flex items-center gap-2 ${
                   badge.unlocked
                     ? "border-amber-500/40 bg-amber-500/10 text-white"
                     : "border-slate-800 bg-slate-950/30 text-slate-500 opacity-50"
                 }`}
               >
-                <span className="text-xl">{badge.icon}</span>
+                <span className="text-lg">{badge.icon}</span>
                 <div>
                   <p className="text-xs font-bold">{badge.title}</p>
-                  <p className="text-[10px] text-slate-400">{badge.description}</p>
+                  <p className="text-[9px] text-slate-400">{badge.description}</p>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-2">
+            <Compass size={14} /> Recommended Next Adventures
+          </p>
+          <div className="space-y-2">
+            {recommendations.map((recommendation, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-2.5 rounded-xl border border-slate-800 bg-slate-950/50 hover:border-amber-500/30 transition-all"
+              >
+                <div>
+                  <p className="text-xs font-bold text-white">{recommendation.name}</p>
+                  <p className="text-[10px] text-amber-400">{recommendation.tag}</p>
+                </div>
+                <ArrowRight size={14} className="text-slate-400" />
               </div>
             ))}
           </div>
