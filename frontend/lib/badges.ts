@@ -11,7 +11,6 @@ export type Badge = {
 export function computeBadges(trips: TripSummary[]): Badge[] {
   const completedTrips = trips.filter(t => t.status === "completed");
   const totalPlaces = trips.reduce((acc, t) => acc + (t.places_visited?.length || 0), 0);
-  
   const underBudget = completedTrips.some(t => t.total_cost && t.budget && t.total_cost <= t.budget);
 
   return [
