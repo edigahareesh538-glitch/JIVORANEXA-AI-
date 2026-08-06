@@ -117,8 +117,13 @@ export default function TripMemoryAlbum({ tripId, onClose }: { tripId: string; o
         </div>
 
         <div className="flex gap-2 mt-6">
-          <button className="flex-1 text-xs px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 font-semibold flex items-center justify-center gap-1.5 hover:opacity-90">
-            <Download size={13} /> Download Album
+          <button
+            onClick={() => {
+              window.print();
+            }}
+            className="flex-1 text-xs px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-slate-950 font-semibold flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
+          >
+            <Download size={13} /> Download Album / PDF
           </button>
           <button
             onClick={() => {
