@@ -33,6 +33,7 @@ export default function TripForm({
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [transportMode, setTransportMode] = useState<TransportMode>("flight");
+  const [travelDate, setTravelDate] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileSelect(file: File | undefined) {
@@ -49,10 +50,15 @@ export default function TripForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const dateSuffix = travelDate
+      ? ` on ${new Date(travelDate).toLocaleDateString("en-IN", { day: "numeric", month: "long" })}`
+      : "";
+    const fullText = (text.trim() + dateSuffix).trim();
+
     if (image) {
-      onSubmitImage(image, text.trim(), transportMode);
-    } else if (text.trim()) {
-      onSubmit(text.trim(), transportMode);
+      onSubmitImage(image, fullText, transportMode);
+    } else if (fullText) {
+      onSubmit(fullText, transportMode);
     }
   }
 
@@ -133,6 +139,17 @@ export default function TripForm({
         >
           {busy ? "Planning…" : "Search & Plan"}
         </button>
+      </div>
+
+      <div className="mt-4">
+        <label className="text-xs uppercase tracking-[0.2em] text-mist block">Travel date (optional)</label>
+        <input
+          type="date"
+          min={new Date().toISOString().split("T")[0]}
+          value={travelDate}
+          onChange={(e) => setTravelDate(e.target.value)}
+          className="mt-2 w-full bg-panel border border-line rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber text-white"
+        />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

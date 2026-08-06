@@ -245,6 +245,16 @@ export async function getEmergencySos(destination: string, currentLocation?: Cur
   return res.json();
 }
 
+export async function translateText(text: string, targetLanguage: string): Promise<{ translated: string }> {
+  const res = await fetch(`${API_URL}/api/translate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, target_language: targetLanguage }),
+  });
+  if (!res.ok) throw new Error(`Translation failed: ${res.status}`);
+  return res.json();
+}
+
 export type Expense = { id: string; category: string; label: string | null; amount: number; currency: string; spent_at: string };
 export async function listExpenses(): Promise<Expense[]> {
   return authedFetch("/api/expenses");
@@ -486,6 +496,22 @@ export async function listTrips(): Promise<TripRecord[]> {
 
 export async function getTrip(tripId: string): Promise<TripRecord> {
   return authedFetch(`/api/trips/${tripId}`);
+}
+
+export type TripSummary = {
+  id: string;
+  destination: string;
+  status: string;
+  days: number;
+  distance_km: number | null;
+  total_cost: number | null;
+  budget: number | null;
+  places_visited: string[];
+  created_at: string;
+};
+
+export async function getTripSummary(tripId: string): Promise<TripSummary> {
+  return authedFetch(`/api/trips/${tripId}/summary`);
 }
 
 export async function updateTripStatus(tripId: string, status: string) {
