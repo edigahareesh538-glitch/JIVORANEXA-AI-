@@ -19,6 +19,24 @@ body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .glass-card, .glass-card * {
+    visibility: visible;
+  }
+  .glass-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+  }
+}
+
 html[data-theme="light"] {
   color-scheme: light;
 }
