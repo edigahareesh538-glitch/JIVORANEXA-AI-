@@ -7,7 +7,7 @@ import {
   CheckCircle2, AlertCircle, Building2, Tag, Calendar, DollarSign, ArrowUpRight 
 } from "lucide-react";
 import {
-  ExpenseReport, exportExpenseCsvUrl, exportExpensePdfUrl, exportExpenseXlsxUrl,
+  ExpenseReport, 
   getBudgetVsActualReport, getExpenseAnalytics, getExpenseMonthlyReport,
   ocrExpenseText,
 } from "@/lib/api";
@@ -69,6 +69,41 @@ export default function ExpenseSmart({ loggedIn }: { loggedIn: boolean }) {
       setError(e instanceof Error ? e.message : "OCR scan failed.");
     } finally { setOcrBusy(false); }
   }
+
+  const handleExport = async (format: "xlsx" | "pdf" | "csv") => {
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("Please sign in to export expenses.");
+      }
+
+      const response = await fetch(`${API}/api/expenses/export/${format}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Accept": format === "pdf" ? "application/pdf" : format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv",
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        throw new Error(body || "Failed to download file");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `expenses_report.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export error:", e);
+      setError(e instanceof Error ? e.message : "Export failed. Please login again.");
+    }
+  };
 
   if (!loggedIn) {
     return (
@@ -202,15 +237,15 @@ export default function ExpenseSmart({ loggedIn }: { loggedIn: boolean }) {
           <div className="glass-panel rounded-2xl p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-mist2 mb-3">Exports & Reports</p>
             <div className="flex flex-wrap gap-2">
-              <a href={exportExpenseCsvUrl()} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
+              <button onClick={() => handleExport("csv")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
                 <Download size={12} /> CSV
-              </a>
-              <a href={exportExpenseXlsxUrl()} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
+              </button>
+              <button onClick={() => handleExport("xlsx")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
                 <FileSpreadsheet size={12} /> Excel
-              </a>
-              <a href={exportExpensePdfUrl()} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
+              </button>
+              <button onClick={() => handleExport("pdf")} className="text-xs px-3 py-2 rounded-lg border border-line text-mist hover:border-amber/40 hover:text-amber flex items-center gap-1.5 transition-colors">
                 <FileText size={12} /> PDF
-              </a>
+              </button>
               <button onClick={async () => {
                 try {
                   const r = await getBudgetVsActualReport(data.total, 3);
