@@ -60,6 +60,38 @@ def get_trip(trip_id: str, user: User = Depends(get_current_user), db: Session =
     }
 
 
+@router.get("/{trip_id}/summary")
+def trip_summary(trip_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    trip = db.get(Trip, trip_id)
+    if not trip or trip.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Trip not found.")
+
+    itin = trip.itinerary_json or {}
+    route = itin.get("route") or {}
+    days = (itin.get("trip_summary") or "").count("Day") or 3
+
+    return {
+        "id": trip.id,
+        "destination": trip.destination,
+        "status": trip.status,
+        "days": days,
+        "distance_km": _path_length_km(route["path"]) if route.get("path") else None,
+        "total_cost": trip.total_cost,
+        "budget": trip.budget,
+        "places_visited": itin.get("attractions", []),
+        "created_at": trip.created_at,
+    }
+
+
+def _path_length_km(path: list[list[float]]) -> float:
+    from app.tools.geocode import _haversine_km
+
+    total = 0.0
+    for a, b in zip(path, path[1:]):
+        total += _haversine_km(a[0], a[1], b[0], b[1])
+    return round(total, 1)
+
+
 @router.patch("/{trip_id}/status")
 def update_status(trip_id: str, status: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     trip = db.get(Trip, trip_id)

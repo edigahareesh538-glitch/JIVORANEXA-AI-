@@ -5,7 +5,7 @@ across every emergency category in one call, so the frontend can render an
 SOS screen with hospitals, police, fuel, EV charging, ATMs, pharmacies,
 blood banks and toilets in one request.
 """
-from app.tools.geocode import find_nearby_places, resolve_place, build_directions_link
+from app.tools.geocode import find_nearby_places_by_category, resolve_place, build_directions_link
 
 EMERGENCY_CATEGORIES = {
     "hospital": "Nearby Hospitals",
@@ -36,9 +36,16 @@ def get_sos_snapshot(destination: str, current_location: dict | None = None, rad
     if not center:
         return {"center": None, "categories": {}}
 
+    results_by_category = find_nearby_places_by_category(
+        center,
+        list(EMERGENCY_CATEGORIES.keys()),
+        limit=3,
+        radius_m=radius_m,
+    )
+
     categories_out = {}
     for category, display_name in EMERGENCY_CATEGORIES.items():
-        results = find_nearby_places(center, [category], limit=3, radius_m=radius_m)
+        results = results_by_category.get(category, [])
         categories_out[category] = {
             "label": display_name,
             "places": [
@@ -47,7 +54,11 @@ def get_sos_snapshot(destination: str, current_location: dict | None = None, rad
                     "distance_km": item["distance_km"],
                     "lat": item["lat"],
                     "lng": item["lng"],
-                    "maps_link": build_directions_link(center, {"lat": item["lat"], "lng": item["lng"], "label": item["name"]}, "driving"),
+                    "maps_link": build_directions_link(
+                        center,
+                        {"lat": item["lat"], "lng": item["lng"], "label": item["name"]},
+                        "driving",
+                    ),
                     "call_number": item.get("tags", {}).get("phone") or item.get("tags", {}).get("contact:phone"),
                 }
                 for item in results

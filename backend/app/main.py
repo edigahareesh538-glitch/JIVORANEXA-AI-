@@ -52,6 +52,7 @@ from app.routes.booking import router as booking_router
 from app.routes.offline import router as offline_router
 from app.routes.admin import router as admin_router
 from app.routes.personalization import router as personalization_router
+from app.routes import translate
 
 app = FastAPI(title="Autonomous Trip Planner Agent", version="2.0.0")
 
@@ -143,6 +144,7 @@ app.include_router(booking_router)
 app.include_router(offline_router)
 app.include_router(admin_router)
 app.include_router(personalization_router)
+app.include_router(translate.router)
 
 
 class PlanRequest(BaseModel):
@@ -186,8 +188,15 @@ async def plan_from_image(
         raise HTTPException(status_code=400, detail="Empty image upload.")
 
     place_info = identify_place(image_bytes, mime_type=image.content_type or "image/jpeg")
-    destination = place_info.get("place") or place_info.get("city")
-    goal_text = message.strip() or f"Plan a trip to {place_info.get('place', destination)} under ₹20,000 for 3 days"
+
+    # If the user typed an actual destination alongside the photo, trust that
+    # over the image guess.
+    from app.services.llm import extract_intent
+    typed_intent = extract_intent(message) if message.strip() else {}
+    typed_destination = typed_intent.get("destination")
+
+    destination = typed_destination or place_info.get("place") or place_info.get("city")
+    goal_text = message.strip() or f"Plan a trip to {destination} under ₹20,000 for 3 days"
 
     session_id, _ = get_or_resume(session_id)
     current_location = None

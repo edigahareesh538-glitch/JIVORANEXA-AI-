@@ -302,6 +302,75 @@ def find_nearby_places(center: dict, categories: list[str], limit: int = 5, radi
     return sorted(items, key=lambda item: item["distance_km"])[:limit]
 
 
+def find_nearby_places_by_category(
+    center: dict, categories: list[str], limit: int = 3, radius_m: int = 8000
+) -> dict[str, list[dict]]:
+    """Fetch nearby places for multiple categories with one combined Overpass query."""
+    if not center or not categories:
+        return {category: [] for category in categories}
+
+    q_parts: list[str] = []
+    for category in categories:
+        for tags in _category_filters(category):
+            filter_str = "".join(f'["{k}"="{v}"]' for k, v in tags.items())
+            q_parts.append(f"nwr(around:{radius_m},{center['lat']},{center['lng']}){filter_str};")
+
+    if not q_parts:
+        return {category: [] for category in categories}
+
+    query = f"""
+    [out:json][timeout:25];
+    (
+      {' '.join(q_parts)}
+    );
+    out center tags;
+    """
+
+    try:
+        with httpx.Client(headers=HEADERS, timeout=20.0, follow_redirects=True) as client:
+            resp = client.post("https://overpass-api.de/api/interpreter", content=query.encode("utf-8"))
+            resp.raise_for_status()
+            payload = resp.json()
+    except Exception:
+        return {category: [] for category in categories}
+
+    all_items = []
+    seen = set()
+    for element in payload.get("elements", []):
+        tags = element.get("tags", {})
+        lat = element.get("lat") or element.get("center", {}).get("lat")
+        lng = element.get("lon") or element.get("center", {}).get("lon")
+        name = tags.get("name")
+        if not name or lat is None or lng is None:
+            continue
+
+        key = (name.lower(), round(float(lat), 5), round(float(lng), 5))
+        if key in seen:
+            continue
+        seen.add(key)
+        all_items.append(
+            {
+                "name": name,
+                "lat": round(float(lat), 5),
+                "lng": round(float(lng), 5),
+                "distance_km": round(_haversine_km(center["lat"], center["lng"], float(lat), float(lng)), 1),
+                "tags": tags,
+            }
+        )
+
+    out: dict[str, list[dict]] = {category: [] for category in categories}
+    for category in categories:
+        wanted = _category_filters(category)
+        matches = [
+            item
+            for item in all_items
+            if any(all(item["tags"].get(k) == v for k, v in tagset.items()) for tagset in wanted)
+        ]
+        out[category] = sorted(matches, key=lambda item: item["distance_km"])[:limit]
+
+    return out
+
+
 def _osrm_route(origin: dict | None, destination: dict) -> list[list[float]]:
     if not origin:
         return []
