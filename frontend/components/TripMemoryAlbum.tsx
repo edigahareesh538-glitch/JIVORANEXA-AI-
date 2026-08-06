@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Download, Share2, Award, Compass, ArrowRight } from "lucide-react";
-import { getTripSummary, TripSummary } from "@/lib/api";
+import { getTripSummary, TripRecord, TripSummary } from "@/lib/api";
 import { computeBadges, Badge } from "@/lib/badges";
 import confetti from "canvas-confetti";
 
@@ -31,24 +31,27 @@ function getRecommendations(destination: string) {
   ];
 }
 
-export default function TripMemoryAlbum({ tripId, onClose }: { tripId: string; onClose: () => void }) {
+export default function TripMemoryAlbum({ trip, tripId, onClose }: { trip?: TripRecord; tripId?: string; onClose: () => void }) {
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const resolvedTripId = trip?.id ?? tripId;
 
   useEffect(() => {
+    if (!resolvedTripId) return;
+
     confetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
     });
 
-    getTripSummary(tripId)
+    getTripSummary(resolvedTripId)
       .then((data) => {
         setSummary(data);
         setBadges(computeBadges([data]));
       })
       .catch(() => {});
-  }, [tripId]);
+  }, [resolvedTripId]);
 
   if (!summary) return null;
 

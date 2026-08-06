@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Briefcase, Calendar, Copy, Download, Heart, IndianRupee, MapPin, Share2, Trash2 } from "lucide-react";
 import { deleteTrip, duplicateTrip, listTrips, TripRecord, updateTripStatus } from "@/lib/api";
 import { destinationPhoto } from "@/lib/destinations";
+import TripMemoryAlbum from "@/components/TripMemoryAlbum";
 
 const STATUS_TABS = ["all", "planned", "booked", "completed", "cancelled"] as const;
 const STATUS_STYLE: Record<string, string> = {
@@ -19,6 +20,7 @@ export default function MyTripsPage({ loggedIn }: { loggedIn: boolean }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "oldest" | "budget_high">("recent");
   const [error, setError] = useState<string | null>(null);
+  const [selectedAlbumTrip, setSelectedAlbumTrip] = useState<TripRecord | null>(null);
 
   async function refresh() {
     try {
@@ -129,11 +131,18 @@ export default function MyTripsPage({ loggedIn }: { loggedIn: boolean }) {
                   <button type="button" onClick={() => cycleStatus(trip)} className="text-xs px-2.5 py-1 rounded-lg border border-line2 hover:border-gold/40 hover:text-gold transition">Change Status</button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button onClick={() => exportTrip(trip)} className="rounded-xl border border-line2 px-2.5 py-2 hover:border-gold/40 hover:text-gold transition flex items-center justify-center gap-1"><Download size={12} /> PDF</button>
-                  <button onClick={() => duplicate(trip.id)} className="rounded-xl border border-line2 px-2.5 py-2 hover:border-gold/40 hover:text-gold transition flex items-center justify-center gap-1"><Copy size={12} /> Duplicate</button>
-                  <button onClick={() => share(trip)} className="rounded-xl border border-line2 px-2.5 py-2 hover:border-gold/40 hover:text-gold transition flex items-center justify-center gap-1"><Share2 size={12} /> Share</button>
-                  <button onClick={() => remove(trip.id)} className="rounded-xl border border-alert/30 px-2.5 py-2 text-alert hover:bg-alert/10 transition flex items-center justify-center gap-1"><Trash2 size={12} /> Delete</button>
+                  <button type="button" onClick={() => exportTrip(trip)} className="rounded-xl border border-line2 px-2.5 py-2 hover:border-gold/40 hover:text-gold transition flex items-center justify-center gap-1"><Download size={12} /> PDF</button>
+                  <button type="button" onClick={() => duplicate(trip.id)} className="rounded-xl border border-line2 px-2.5 py-2 hover:border-gold/40 hover:text-gold transition flex items-center justify-center gap-1"><Copy size={12} /> Duplicate</button>
+                  <button type="button" onClick={() => share(trip)} className="rounded-xl border border-line2 px-2.5 py-2 hover:border-gold/40 hover:text-gold transition flex items-center justify-center gap-1"><Share2 size={12} /> Share</button>
+                  <button type="button" onClick={() => remove(trip.id)} className="rounded-xl border border-alert/30 px-2.5 py-2 text-alert hover:bg-alert/10 transition flex items-center justify-center gap-1"><Trash2 size={12} /> Delete</button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAlbumTrip(trip)}
+                  className="w-full mt-3 py-2 px-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+                >
+                  <span>🏆</span> View Memory Album & Badges
+                </button>
               </div>
             </div>
           ))}
@@ -149,6 +158,13 @@ export default function MyTripsPage({ loggedIn }: { loggedIn: boolean }) {
             ))}
           </div>
         </div>
+      )}
+
+      {selectedAlbumTrip && (
+        <TripMemoryAlbum
+          trip={selectedAlbumTrip}
+          onClose={() => setSelectedAlbumTrip(null)}
+        />
       )}
     </div>
   );
