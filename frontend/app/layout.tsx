@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuroraBackground from "@/components/shell/AuroraBackground";
+import IntroGate from "@/components/intro/IntroGate";
 
 export const metadata: Metadata = {
   title: "Jivoranexa Ai Trip Agent — Autonomous Trip Planner",
@@ -17,7 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <AuroraBackground />
-        <div className="relative z-10">{children}</div>
+        <IntroGate>
+          <div className="relative z-10">{children}</div>
+        </IntroGate>
       </body>
     </html>
   );
