@@ -19,16 +19,7 @@ if not settings.USE_MOCK_LLM and settings.GEMINI_API_KEY:
 _MOCK_LANDMARKS = [
     {"place": "Taj Mahal", "city": "Agra", "country": "India",
      "description": "An ivory-white marble mausoleum built by Emperor Shah Jahan, one of the most recognizable monuments in the world."},
-    {"place": "Charminar", "city": "Hyderabad", "country": "India",
-     "description": "A 16th-century mosque and monument with four grand arches, the iconic symbol of Hyderabad's old city."},
-    {"place": "Gateway of India", "city": "Mumbai", "country": "India",
-     "description": "A basalt arch monument built to commemorate King George V's visit, overlooking the Arabian Sea."},
-    {"place": "Golden Gate Bridge", "city": "San Francisco", "country": "USA",
-     "description": "A suspension bridge spanning the Golden Gate strait, famous for its Art Deco towers and International Orange color."},
-    {"place": "Eiffel Tower", "city": "Paris", "country": "France",
-     "description": "A wrought-iron lattice tower on the Champ de Mars, the most-visited paid monument in the world."},
-    {"place": "Baga Beach", "city": "Goa", "country": "India",
-     "description": "A lively beach on Goa's northern coast known for water sports, shacks, and nightlife."},
+    
 ]
 
 
