@@ -19,6 +19,8 @@ if not settings.USE_MOCK_LLM and settings.GEMINI_API_KEY:
 _MOCK_LANDMARKS = [
     {"place": "Taj Mahal", "city": "Agra", "country": "India",
      "description": "An ivory-white marble mausoleum built by Emperor Shah Jahan, one of the most recognizable monuments in the world."},
+    {"place": "Delhi", "city": "New Delhi", "country": "India",
+     "description":"it is the capital city of India,one of the most recognizable monuments in the world."}
     
 ]
 
